@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Ô sạc #01 — EV Smart Parking</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0c0f14;
+--card:#161b22;
+--card2:#1c222b;
+--border:#2a3140;
+--text:#e6edf3;
+--text2:#8b949e;
+--text3:#6e7681;
+--green:#2ea043;
+--green-bg:rgba(46,160,67,0.12);
+--green-border:rgba(46,160,67,0.3);
+--blue:#388bfd;
+--blue-bg:rgba(56,139,253,0.12);
+--blue-border:rgba(56,139,253,0.3);
+--red:#f85149;
+--red-bg:rgba(248,81,73,0.12);
+--red-border:rgba(248,81,73,0.3);
+--orange:#d29922;
+--orange-bg:rgba(210,153,34,0.12);
+--orange-border:rgba(210,153,34,0.3);
+--cyan:#39d2c0;
+--cyan-bg:rgba(57,210,192,0.1);
+}
+body{
+font-family:'Be Vietnam Pro',sans-serif;
+background:var(--bg);
+color:var(--text);
+min-height:100vh;
+min-height:100dvh;
+display:flex;
+flex-direction:column;
+}
+.header{
+padding:16px 20px;
+display:flex;
+align-items:center;
+gap:12px;
+border-bottom:0.5px solid var(--border);
+}
+.header-icon{
+width:36px;height:36px;
+border-radius:10px;
+background:linear-gradient(135deg,#388bfd,#39d2c0);
+display:flex;align-items:center;justify-content:center;
+flex-shrink:0;
+}
+.header-icon svg{width:20px;height:20px;fill:white}
+.header-text h1{font-size:15px;font-weight:600;line-height:1.3}
+.header-text p{font-size:11px;color:var(--text3);margin-top:1px}
+.live-dot{
+margin-left:auto;
+display:flex;align-items:center;gap:5px;
+padding:4px 10px;
+background:var(--green-bg);
+border:0.5px solid var(--green-border);
+border-radius:20px;
+font-size:11px;color:var(--green);font-weight:500;
+}
+.live-dot::before{
+content:'';width:6px;height:6px;
+background:var(--green);border-radius:50%;
+animation:pulse 2s infinite;
+}
+@keyframes pulse{
+0%,100%{opacity:1}50%{opacity:0.4}
+}
+.main{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+.status-banner{
+padding:14px 16px;
+border-radius:12px;
+display:flex;align-items:center;gap:10px;
+font-size:14px;font-weight:500;
+transition:all 0.4s;
+}
+.status-banner svg{width:20px;height:20px;flex-shrink:0}
+.status-banner.empty{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
+.status-banner.occupied{background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue)}
+.status-banner.charging{background:var(--cyan-bg);border:0.5px solid rgba(57,210,192,0.3);color:var(--cyan)}
+.status-banner.violation{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{
+background:var(--card);
+border:0.5px solid var(--border);
+border-radius:12px;
+padding:14px 16px;
+}
+.stat-label{font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.stat-value{font-size:26px;font-weight:700;line-height:1}
+.stat-value span{font-size:14px;font-weight:400;color:var(--text2);margin-left:2px}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+
+.gauge-container{
+background:var(--card);
+border:0.5px solid var(--border);
+border-radius:12px;
+padding:20px 16px;
+text-align:center;
+}
+.gauge-label{font-size:11px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}
+.gauge-svg{width:180px;height:100px;margin:0 auto;display:block}
+.gauge-track{fill:none;stroke:var(--border);stroke-width:10;stroke-linecap:round}
+.gauge-fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 0.6s,stroke 0.4s}
+.gauge-text{font-family:'Be Vietnam Pro';font-weight:700;font-size:28px;fill:var(--text)}
+.gauge-unit{font-family:'Be Vietnam Pro';font-weight:400;font-size:12px;fill:var(--text2)}
+.gauge-range{display:flex;justify-content:space-between;padding:0 10px;margin-top:6px;font-size:11px;color:var(--text3)}
+
+.info-row{
+display:flex;align-items:center;gap:8px;
+padding:10px 14px;
+background:var(--card);
+border:0.5px solid var(--border);
+border-radius:10px;
+font-size:13px;
+}
+.info-row svg{width:16px;height:16px;flex-shrink:0}
+.info-row .label{color:var(--text2);flex:1}
+.info-row .value{font-weight:500}
+
+.unlock-btn{
+width:100%;
+padding:16px;
+border:none;
+border-radius:12px;
+font-family:'Be Vietnam Pro',sans-serif;
+font-size:16px;
+font-weight:600;
+cursor:pointer;
+display:flex;
+align-items:center;
+justify-content:center;
+gap:8px;
+transition:all 0.3s;
+margin-top:auto;
+}
+.unlock-btn.ready{
+background:linear-gradient(135deg,#388bfd,#2ea043);
+color:white;
+}
+.unlock-btn.ready:active{transform:scale(0.97);opacity:0.9}
+.unlock-btn.loading{background:var(--card2);color:var(--text2);border:0.5px solid var(--border);cursor:wait}
+.unlock-btn.success{background:var(--green-bg);color:var(--green);border:0.5px solid var(--green-border)}
+.unlock-btn.disabled{background:var(--card2);color:var(--text3);border:0.5px solid var(--border);cursor:not-allowed}
+.unlock-btn svg{width:20px;height:20px}
+
+.footer{
+padding:12px 20px;
+border-top:0.5px solid var(--border);
+display:flex;
+justify-content:space-between;
+font-size:11px;
+color:var(--text3);
+}
+
+.note{
+padding:12px 14px;
+background:var(--card);
+border:0.5px solid var(--border);
+border-radius:10px;
+font-size:12px;
+color:var(--text2);
+line-height:1.6;
+}
+
+.error-msg{
+padding:10px 14px;
+background:var(--red-bg);
+border:0.5px solid var(--red-border);
+border-radius:10px;
+font-size:12px;
+color:var(--red);
+display:none;
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{animation:spin 1s linear infinite;display:inline-block}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  </div>
+  <div class="header-text">
+    <h1>Ô sạc #01</h1>
+    <p>Trạm sạc xe điện thông minh</p>
+  </div>
+  <div class="live-dot" id="liveStatus">Live</div>
+</div>
+
+<div class="main">
+  
+  <div class="status-banner empty" id="statusBanner">
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.2"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span id="statusText">Đang tải...</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Khoảng cách</div>
+      <div class="stat-value" id="distanceValue">--<span>cm</span></div>
+      <div class="stat-sub" id="distanceSub">Chưa có dữ liệu</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Trạng thái khóa</div>
+      <div class="stat-value" id="lockValue">--</div>
+      <div class="stat-sub" id="lockSub">Đang tải</div>
+    </div>
+  </div>
+
+  <div class="gauge-container">
+    <div class="gauge-label">Khoảng cách xe — trụ sạc</div>
+    <svg class="gauge-svg" viewBox="0 0 180 100">
+      <path class="gauge-track" d="M 20 90 A 70 70 0 0 1 160 90"/>
+      <path class="gauge-fill" id="gaugeFill" d="M 20 90 A 70 70 0 0 1 160 90" stroke="var(--green)" stroke-dasharray="220" stroke-dashoffset="220"/>
+      <text class="gauge-text" x="90" y="78" text-anchor="middle" id="gaugeText">--</text>
+      <text class="gauge-unit" x="90" y="93" text-anchor="middle">cm</text>
+    </svg>
+    <div class="gauge-range"><span>0</span><span>200</span><span>400</span></div>
+  </div>
+
+  <div class="info-row">
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 12h4m2 0h4"/><circle cx="12" cy="12" r="1"/></svg>
+    <span class="label">Trạng thái sạc</span>
+    <span class="value" id="chargingStatus">--</span>
+  </div>
+
+  <div class="info-row">
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><path d="M12 9v4l2 2"/><circle cx="12" cy="12" r="9"/></svg>
+    <span class="label">Vi phạm</span>
+    <span class="value" id="violationStatus">--</span>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="note">
+    <strong>Lưu ý:</strong> Sau khi hạ khóa, bạn phải cắm sạc trong vòng 10 giây nếu không hệ thống sẽ cảnh báo vi phạm.
+  </div>
+
+  <button class="unlock-btn ready" id="unlockBtn" onclick="handleUnlock()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+    Hạ khóa — cho xe vào
+  </button>
+
+</div>
+
+<div class="footer">
+  <span>EV Smart Parking — ĐATN 2026</span>
+  <span id="lastUpdate">--</span>
+</div>
+
+<script>
+const CONFIG = {
+  token: 'N7OFNh5W2bXFpSDSCxZQjLaaL64z9GCi',
+  server: 'https://sgp1.blynk.cloud',
+  pins: {
+    state: 'V0',
+    distance: 'V1',
+    hasCar: 'V2',
+    charging: 'V3',
+    lock: 'V6',
+    violation: 'V7',
+    safety: 'V8',
+    unlockCmd: 'V9'
+  },
+  refreshInterval: 2000
+};
+
+const STATE_MAP = {
+  0: { text: 'Ô trống — sẵn sàng', cls: 'empty', icon: 'check' },
+  1: { text: 'Có xe trong ô', cls: 'occupied', icon: 'car' },
+  2: { text: 'Đang sạc', cls: 'charging', icon: 'bolt' },
+  3: { text: 'Vi phạm', cls: 'violation', icon: 'alert' },
+  4: { text: 'Lỗi hệ thống', cls: 'violation', icon: 'alert' }
+};
+
+const ICONS = {
+  check: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.2"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  car: '<svg viewBox="0 0 24 24" fill="currentColor" opacity="0.8"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11M3 17h1m16 0h1M6 15h.01M18 15h.01M3 11h18v6H3z"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 7v5m0 3v1"/></svg>'
+};
+
+function apiUrl(pins) {
+  const pinParams = pins.map(p => p).join('&');
+  return CONFIG.server + '/external/api/get?token=' + CONFIG.token + '&' + pinParams;
+}
+
+function apiUpdateUrl(pin, value) {
+  return CONFIG.server + '/external/api/update?token=' + CONFIG.token + '&' + pin + '=' + value;
+}
+
+async function fetchData() {
+  try {
+    const url = apiUrl([
+      CONFIG.pins.state,
+      CONFIG.pins.distance,
+      CONFIG.pins.hasCar,
+      CONFIG.pins.charging,
+      CONFIG.pins.lock,
+      CONFIG.pins.violation,
+      CONFIG.pins.safety
+    ]);
+    
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error: ' + res.status);
+    
+    const data = await res.json();
+    updateUI(data);
+    hideError();
+    
+  } catch (err) {
+    showError('Không thể kết nối hệ thống: ' + err.message);
+  }
+}
+
+function updateUI(data) {
+  const state = parseInt(data[0]) || 0;
+  const distance = parseInt(data[1]) || 0;
+  const hasCar = parseInt(data[2]) || 0;
+  const charging = parseInt(data[3]) || 0;
+  const lock = parseInt(data[4]) || 0;
+  const violation = data[5] || 'none';
+  const safety = parseInt(data[6]) || 0;
+  
+  // Status banner
+  const banner = document.getElementById('statusBanner');
+  const stateInfo = STATE_MAP[state] || STATE_MAP[0];
+  banner.className = 'status-banner ' + stateInfo.cls;
+  banner.innerHTML = ICONS[stateInfo.icon] + '<span>' + stateInfo.text + '</span>';
+  
+  // Distance
+  document.getElementById('distanceValue').innerHTML = distance + '<span>cm</span>';
+  const distSub = document.getElementById('distanceSub');
+  if (distance > 0 && distance < 10) {
+    distSub.textContent = 'Quá gần trụ sạc!';
+    distSub.style.color = 'var(--red)';
+  } else if (distance >= 10 && distance <= 60) {
+    distSub.textContent = 'Khoảng cách tốt';
+    distSub.style.color = 'var(--green)';
+  } else if (distance > 60) {
+    distSub.textContent = 'Chưa có xe';
+    distSub.style.color = 'var(--text3)';
+  } else {
+    distSub.textContent = 'Đang đo...';
+    distSub.style.color = 'var(--text3)';
+  }
+  
+  // Gauge
+  updateGauge(distance);
+  
+  // Lock
+  const lockValue = document.getElementById('lockValue');
+  const lockSub = document.getElementById('lockSub');
+  if (lock === 1) {
+    lockValue.innerHTML = '<span style="font-size:22px">🔒</span>';
+    lockSub.textContent = 'Khóa đang dựng';
+    lockSub.style.color = 'var(--red)';
+  } else {
+    lockValue.innerHTML = '<span style="font-size:22px">🔓</span>';
+    lockSub.textContent = 'Khóa đã hạ';
+    lockSub.style.color = 'var(--green)';
+  }
+  
+  // Charging
+  const chargingEl = document.getElementById('chargingStatus');
+  if (charging === 1) {
+    chargingEl.textContent = '⚡ Đang sạc';
+    chargingEl.style.color = 'var(--cyan)';
+  } else {
+    chargingEl.textContent = 'Chưa sạc';
+    chargingEl.style.color = 'var(--text2)';
+  }
+  
+  // Violation
+  const violationEl = document.getElementById('violationStatus');
+  if (violation === 'none' || violation === '') {
+    violationEl.textContent = '✓ Không có';
+    violationEl.style.color = 'var(--green)';
+  } else {
+    const violationMap = {
+      'no_charging': '⚠ Không sạc',
+      'no_leaving': '⚠ Không rời đi',
+      'line_cross': '⚠ Lấn vạch'
+    };
+    violationEl.textContent = violationMap[violation] || ('⚠ ' + violation);
+    violationEl.style.color = 'var(--orange)';
+  }
+  
+  // Unlock button state
+  const btn = document.getElementById('unlockBtn');
+  if (!btn.classList.contains('loading') && !btn.classList.contains('success')) {
+    if (state === 0 && lock === 1) {
+      btn.className = 'unlock-btn ready';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> Hạ khóa — cho xe vào';
+      btn.disabled = false;
+    } else if (state >= 1) {
+      btn.className = 'unlock-btn disabled';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Ô đang được sử dụng';
+      btn.disabled = true;
+    }
+  }
+  
+  // Last update
+  const now = new Date();
+  document.getElementById('lastUpdate').textContent =
+    now.getHours().toString().padStart(2,'0') + ':' +
+    now.getMinutes().toString().padStart(2,'0') + ':' +
+    now.getSeconds().toString().padStart(2,'0');
+}
+
+function updateGauge(value) {
+  const maxVal = 400;
+  const ratio = Math.min(value / maxVal, 1);
+  const totalLen = 220;
+  const offset = totalLen * (1 - ratio);
+  
+  const fill = document.getElementById('gaugeFill');
+  fill.style.strokeDashoffset = offset;
+  
+  // Color based on distance
+  if (value > 0 && value < 10) {
+    fill.style.stroke = 'var(--red)';
+  } else if (value >= 10 && value <= 60) {
+    fill.style.stroke = 'var(--green)';
+  } else if (value > 60) {
+    fill.style.stroke = 'var(--blue)';
+  } else {
+    fill.style.stroke = 'var(--text3)';
+  }
+  
+  document.getElementById('gaugeText').textContent = value || '--';
+}
+
+async function handleUnlock() {
+  const btn = document.getElementById('unlockBtn');
+  if (btn.disabled || btn.classList.contains('loading')) return;
+  
+  // Loading state
+  btn.className = 'unlock-btn loading';
+  btn.innerHTML = '<span class="spinner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4m-3.93 7.07l-2.83-2.83M6.34 6.34L3.51 3.51"/></svg></span> Đang hạ khóa...';
+  btn.disabled = true;
+  
+  try {
+    const url = apiUpdateUrl(CONFIG.pins.unlockCmd, 1);
+    const res = await fetch(url);
+    
+    if (!res.ok) throw new Error('Lỗi API: ' + res.status);
+    
+    // Success state
+    btn.className = 'unlock-btn success';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> Đã hạ khóa — xe có thể vào';
+    
+
+    
+    // Reset button after 5 seconds
+    setTimeout(() => {
+      btn.className = 'unlock-btn disabled';
+      btn.innerHTML = 'Đang chờ xe vào...';
+      btn.disabled = true;
+    }, 5000);
+    
+    hideError();
+    
+  } catch (err) {
+    btn.className = 'unlock-btn ready';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> Hạ khóa — cho xe vào';
+    btn.disabled = false;
+    showError('Không thể hạ khóa: ' + err.message);
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+// Start
+fetchData();
+setInterval(fetchData, CONFIG.refreshInterval);
+</script>
+
+</body>
+</html>
