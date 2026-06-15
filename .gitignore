@@ -1,1 +1,4 @@
 firmware/secrets.h
+firmware_idf/build/
+firmware_idf/managed_components/
+firmware_idf/sdkconfig.old

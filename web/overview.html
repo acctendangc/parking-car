@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>EV Smart Parking — 8 Slots Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-main: #0a0d14;
+  --bg-card: #141923;
+  --border-color: #222c3d;
+  --text-primary: #f0f3f6;
+  --text-secondary: #7d8590;
+  --color-empty: #10b981;
+  --color-empty-glow: rgba(16, 185, 129, 0.15);
+  --color-occupied: #3b82f6;
+  --color-occupied-glow: rgba(59, 130, 246, 0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Header Dashboard */
+.header-container {
+  text-align: center;
+  margin-bottom: 28px;
+}
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.live-indicator {
+  width: 8px; height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+/* Khung bãi đỗ mở rộng */
+.lot-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  width: 100%;
+  max-width: 760px; /* Tăng kích thước chiều ngang để chứa 4 ô */
+}
+
+.row { 
+  display: flex; 
+  gap: 14px; 
+  justify-content: center; 
+}
+
+/* Định dạng ô đỗ xe hiện đại */
+.slot {
+  flex: 1;
+  height: 110px;
+  min-width: 120px;
+  border-radius: 14px;
+  border: 2px dashed #2d3748;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slot::before {
+  content: 'EV CHARGING';
+  position: absolute;
+  top: 6px; font-size: 8px;
+  font-weight: 600; letter-spacing: 1px;
+  color: rgba(255,255,255,0.12);
+}
+
+/* Trạng thái trống */
+.slot.empty {
+  background: rgba(16, 185, 129, 0.01);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.slot.empty:hover {
+  border-color: var(--color-empty);
+  box-shadow: 0 0 15px var(--color-empty-glow);
+}
+.slot.empty .icon-wrapper { color: var(--color-empty); }
+.slot.empty .slot-state { background: rgba(16, 185, 129, 0.1); color: var(--color-empty); }
+
+/* Trạng thái có xe */
+.slot.occupied {
+  background: rgba(59, 130, 246, 0.03);
+  border-color: rgba(59, 130, 246, 0.4);
+  border-style: solid;
+}
+.slot.occupied:hover {
+  border-color: var(--color-occupied);
+  box-shadow: 0 0 15px var(--color-occupied-glow);
+}
+.slot.occupied .icon-wrapper { color: var(--color-occupied); animation: parkIn 0.4s ease; }
+.slot.occupied .slot-state { background: rgba(59, 130, 246, 0.1); color: var(--color-occupied); }
+
+@keyframes parkIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.icon-wrapper {
+  font-size: 28px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s;
+}
+.slot-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+.slot-state { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+
+/* Đường đi trục chính bãi đỗ */
+.road {
+  margin: 24px 0;
+  height: 48px;
+  background: #181f2a;
+  border-top: 1px solid #2d3748;
+  border-bottom: 1px solid #2d3748;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.road::before {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 50%;
+  border-top: 2px dashed #334155; transform: translateY(-50%);
+}
+.road-text {
+  background: #181f2a; padding: 0 16px;
+  font-size: 11px; font-weight: 600; color: #475569;
+  letter-spacing: 6px; text-transform: uppercase;
+  position: relative; z-index: 1;
+}
+
+/* Khu vực thống kê nhanh */
+.summary-box {
+  margin-top: 28px;
+  background: #111622;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex; justify-content: space-around;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+.summary-item { text-align: center; }
+.summary-item .num { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+.summary-item .label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+.footer { margin-top: 28px; font-size: 11px; color: #484f58; letter-spacing: 0.5px; }
+
+/* SVG Icons đồ họa công nghiệp */
+.svg-icon { width: 32px; height: 32px; fill: currentColor; }
+
+/* Responsive tối ưu hiển thị mobile */
+@media (max-width: 680px) {
+  .row { flex-wrap: wrap; gap: 10px; }
+  .slot { flex: 1 1 calc(50% - 10px); height: 100px; }
+  .road { margin: 16px 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="header-container">
+  <h1>BÃI ĐỂ XE ĐIỆN TÍCH HỢP TRẠM SẠC</h1>
+  <p class="sub"><span class="live-indicator"></span> Trạng thái các ô đỗ xe</p>
+</div>
+
+<div class="lot-card">
+  <div class="row">
+    <div class="slot empty" id="s1" title="Dữ liệu thời gian thực từ cảm biến Blynk">
+      <div class="icon-wrapper" id="s1Icon"></div>
+      <div class="slot-label">Vị trí 01</div>
+      <div class="slot-state" id="s1State">---</div>
+    </div>
+    
+    <div class="slot occupied" id="s2" onclick="toggleFakeSlot(2)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s2Icon"></div>
+      <div class="slot-label">Vị trí 02</div>
+      <div class="slot-state" id="s2State">---</div>
+    </div>
+
+    <div class="slot empty" id="s3" onclick="toggleFakeSlot(3)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s3Icon"></div>
+      <div class="slot-label">Vị trí 03</div>
+      <div class="slot-state" id="s3State">---</div>
+    </div>
+
+    <div class="slot occupied" id="s4" onclick="toggleFakeSlot(4)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s4Icon"></div>
+      <div class="slot-label">Vị trí 04</div>
+      <div class="slot-state" id="s4State">---</div>
+    </div>
+  </div>
+
+  <div class="road">
+    <span class="road-text">ĐƯỜNG DI CHUYỂN</span>
+  </div>
+
+  <div class="row">
+    <div class="slot occupied" id="s5" onclick="toggleFakeSlot(5)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s5Icon"></div>
+      <div class="slot-label">Vị trí 05</div>
+      <div class="slot-state" id="s5State">---</div>
+    </div>
+
+    <div class="slot empty" id="s6" onclick="toggleFakeSlot(6)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s6Icon"></div>
+      <div class="slot-label">Vị trí 06</div>
+      <div class="slot-state" id="s6State">---</div>
+    </div>
+
+    <div class="slot occupied" id="s7" onclick="toggleFakeSlot(7)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s7Icon"></div>
+      <div class="slot-label">Vị trí 07</div>
+      <div class="slot-state" id="s7State">---</div>
+    </div>
+
+    <div class="slot empty" id="s8" onclick="toggleFakeSlot(8)" title="Click để chuyển đổi trạng thái ảo">
+      <div class="icon-wrapper" id="s8Icon"></div>
+      <div class="slot-label">Vị trí 08</div>
+      <div class="slot-state" id="s8State">---</div>
+    </div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-item">
+      <div class="num" style="color: #6366f1">8</div>
+      <div class="label">Tổng vị trí</div>
+    </div>
+    <div class="summary-item">
+      <div class="num" id="numEmpty" style="color: var(--color-empty)">-</div>
+      <div class="label">Đang trống</div>
+    </div>
+    <div class="summary-item">
+      <div class="num" id="numOccupied" style="color: var(--color-occupied)">-</div>
+      <div class="label">Đang sạc</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">EV Parking 2026</div>
+
+<script>
+var TOKEN = '8kMyasAuHrqFZRGrk_dA-K4VJI1i6EIN';
+var SERVER = 'https://sgp1.blynk.cloud';
+
+// Quản lý trạng thái cho toàn bộ hệ thống ô đỗ xe giả lập (Vị trí 02 -> Vị trí 08)
+var fake = { s2: true, s3: false, s4: true, s5: true, s6: false, s7: true, s8: false };
+
+// Đồ họa định dạng vectơ gốc cho các biểu tượng trạng thái
+var carSVG = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M18.92 11c-.08-.26-1.07-3.5-3.92-3.5H9c-2.85 0-3.84 3.24-3.92 3.5-.47 1.54-.08 3.2.92 4.34.32.36.72.63 1.15.82-.04.28-.15 1.1-.08 1.51.11.66.71 1.17 1.38 1.17h.51c.67 0 1.25-.47 1.38-1.13.04-.2.12-.64.17-.91h4.14c.05.27.13.71.17.91.13.66.71 1.13 1.38 1.13h.51c.67 0 1.27-.51 1.38-1.17.07-.41-.04-1.23-.08-1.51.43-.19.83-.46 1.15-.82 1-1.14 1.39-2.8.92-4.34zM7.5 15c-.83 0-1.5-.67-1.5-1.5S6.67 12 7.5 12s1.5.67 1.5 1.5S8.33 15 7.5 15zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>';
+var parkingSVG = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M13.5 6H9v5h4.5c1.38 0 2.5-1.12 2.5-2.5S14.88 6 13.5 6zM19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 6.5c0 1.93-1.57 3.5-3.5 3.5H9v4H7V4h6.5c1.93 0 3.5 1.57 3.5 3.5v2z"/></svg>';
+
+function setSlot(n, hasCar) {
+  var el = document.getElementById('s' + n);
+  var icon = document.getElementById('s' + n + 'Icon');
+  var state = document.getElementById('s' + n + 'State');
+
+  if (hasCar) {
+    el.className = 'slot occupied';
+    icon.innerHTML = carSVG;
+    state.textContent = 'Đang sạc';
+  } else {
+    el.className = 'slot empty';
+    icon.innerHTML = parkingSVG;
+    state.textContent = 'Trống';
+  }
+}
+
+// Cấu trúc chức năng đảo trạng thái ô đỗ ảo bằng sự kiện click
+function toggleFakeSlot(n) {
+  var key = 's' + n;
+  fake[key] = !fake[key];
+  setSlot(n, fake[key]);
+  updateSummary();
+}
+
+// Hàm tính toán và cập nhật số liệu thống kê tổng hợp từ 8 ô đỗ
+function updateSummary() {
+  var s1 = document.getElementById('s1').classList.contains('occupied');
+  var all = [s1, fake.s2, fake.s3, fake.s4, fake.s5, fake.s6, fake.s7, fake.s8];
+  var empty = all.filter(function(x) { return !x; }).length;
+  var occupied = all.filter(function(x) { return x; }).length;
+  document.getElementById('numEmpty').textContent = empty;
+  document.getElementById('numOccupied').textContent = occupied;
+}
+
+function refresh() {
+  /* Đồng bộ Vị trí 01 từ luồng dữ liệu thời gian thực của Blynk Cloud API */
+  fetch(SERVER + '/external/api/get?token=' + TOKEN + '&V2')
+    .then(function(r) { return r.text(); })
+    .then(function(v) {
+      setSlot(1, parseInt(v) === 1);
+      updateSummary();
+    })
+    .catch(function() {
+      setSlot(1, false);
+      updateSummary();
+    });
+
+  /* Tự động kết xuất đồ họa trạng thái cho các ô đỗ ảo còn lại */
+  for (var i = 2; i <= 8; i++) {
+    setSlot(i, fake['s' + i]);
+  }
+}
+
+// Kích hoạt chu kỳ làm mới giao diện 3 giây một lần
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

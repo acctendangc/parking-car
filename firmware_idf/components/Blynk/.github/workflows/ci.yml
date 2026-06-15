@@ -1,0 +1,371 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  DEFAULT_BOARD: uno
+  ESP32_CORE_V2: &esp32_core_v2 --project-option='platform=platformio/espressif32'
+  ESP32_CORE_V3: &esp32_core_v3 --project-option='platform=https://github.com/pioarduino/platform-espressif32/releases/latest/download/platform-espressif32.zip'
+
+jobs:
+  platformio-edgent:
+    name: Edgent - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Blynk.Edgent/Edgent_ESP32
+          board: esp32dev
+          extra_args: --project-option='build_flags=-DBOARD_LED_PIN_WS2812 -DUSE_TICKER'
+          platform: *esp32_core_v2
+        - example: examples/Blynk.Edgent/Edgent_ESP32
+          board: esp32dev
+          extra_args: --project-option='build_flags=-DBOARD_LED_PIN_WS2812 -DUSE_TICKER'
+          platform: *esp32_core_v3
+        - example: examples/Blynk.Edgent/Edgent_ESP8266
+          board: nodemcuv2
+          extra_args: --project-option='build_flags=-DBOARD_LED_PIN_WS2812 -DUSE_TICKER'
+        - example: examples/Blynk.Edgent/Edgent_NCP
+          board: uno_r4_wifi
+        - example: examples/Blynk.Edgent/Edgent_Wio_Terminal
+          board: seeed_wio_terminal
+          extra_args: --project-option='lib_deps=Seeed Arduino rpcWiFi, ArduinoHttpClient'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Install PlatformIO libraries
+        run: |
+          pio pkg install -g -l "adafruit/Adafruit NeoPixel"
+          pio pkg install -g -l "adafruit/Adafruit Unified Sensor"
+          pio pkg install -g -l "jandrassy/ArduinoOTA"
+
+      - name: Build PlatformIO example
+        run: |
+          pio ci --lib=. --board=${{ matrix.board || env.DEFAULT_BOARD }} \
+          ${{ matrix.extra_args }} ${{ matrix.platform }} \
+          --project-option="extra_scripts=post:${{ github.workspace }}/extras/check_mem.py"
+        env:
+          PLATFORMIO_CI_SRC: ${{ matrix.example }}
+          PLATFORMIO_BUILD_FLAGS:
+            -DBLYNK_TEMPLATE_ID="\"TMPLxxxx\""
+            -DBLYNK_TEMPLATE_NAME="\"MyDevice\""
+
+  platformio-esp:
+    name: ESP - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Boards_ArduinoClient/ESP8266_ESP32
+          board: nodemcuv2
+        - example: examples/Boards_ArduinoClient/ESP8266_ESP32
+          board: esp32dev
+          platform: *esp32_core_v2
+        - example: examples/Boards_ArduinoClient/ESP8266_ESP32
+          board: esp32dev
+          platform: *esp32_core_v3
+        - example: examples/Boards_WiFi/ESP32_WiFi
+          board: esp32dev
+          platform: *esp32_core_v2
+        - example: examples/Boards_WiFi/ESP32_WiFi
+          board: esp32dev
+          platform: *esp32_core_v3
+        - example: examples/Boards_WiFi/ESP32_WiFi_SSL
+          board: esp32dev
+          platform: *esp32_core_v2
+        - example: examples/Boards_WiFi/ESP32_WiFi_SSL
+          board: esp32dev
+          platform: *esp32_core_v3
+        - example: examples/Boards_WiFi/ESP8266_Shield
+          board: megaatmega2560
+        - example: examples/Boards_WiFi/ESP8266_Standalone
+          board: nodemcuv2
+        - example: examples/Boards_WiFi/ESP8266_Standalone_Manual_IP
+          board: nodemcuv2
+        - example: examples/Boards_WiFi/ESP8266_Standalone_SSL
+          board: nodemcuv2
+        - example: examples/Boards_With_HTTP_API/ESP8266_ESP32
+          board: esp32dev
+          platform: *esp32_core_v2
+        - example: examples/Boards_With_HTTP_API/ESP8266_ESP32
+          board: esp32dev
+          platform: *esp32_core_v3
+        - example: examples/Boards_With_HTTP_API/ESP8266_ESP32
+          board: nodemcuv2
+        - example: examples/Boards_WiFi/Sparkfun_Blynk_Board
+          board: nodemcuv2
+        - example: examples/More/HandleDisconnect
+          board: nodemcuv2
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Install PlatformIO libraries
+        run: |
+          pio pkg install -g -l "https://github.com/vshymanskyy/BlynkESP8266.git"
+
+      - name: Build PlatformIO example
+        run: |
+          pio ci --lib=. --board=${{ matrix.board || env.DEFAULT_BOARD }} \
+          ${{ matrix.extra_args }} ${{ matrix.platform }} \
+          --project-option="extra_scripts=post:${{ github.workspace }}/extras/check_mem.py"
+        env:
+          PLATFORMIO_CI_SRC: ${{ matrix.example }}
+          PLATFORMIO_BUILD_FLAGS:
+            -DBLYNK_TEMPLATE_ID="\"TMPLxxxx\""
+            -DBLYNK_TEMPLATE_NAME="\"MyDevice\""
+            -DBLYNK_AUTH_TOKEN="\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+
+  platformio-wifi:
+    name: WiFi - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Boards_WiFi/Adafruit_Feather_M0_WiFi
+          board: adafruit_feather_m0
+          extra_args: --project-option='lib_deps=SPI, WiFi101'
+        - example: examples/Boards_WiFi/Arduino_MKR1000
+          board: mkr1000USB
+          extra_args: --project-option='lib_deps=WiFi101'
+        - example: examples/Boards_WiFi/Arduino_MKR1010
+          board: mkrwifi1010
+          extra_args: --project-option='lib_deps=WiFiNINA'
+        - example: examples/Boards_WiFi/Arduino_WiFi_Shield
+        - example: examples/Boards_WiFi/Arduino_WiFi_Shield_101
+          extra_args: --project-option='lib_deps=WiFi101'
+        - example: examples/Boards_WiFi/Arduino_Yun
+          board: yun
+          extra_args: --project-option='lib_deps=Bridge'
+        - example: examples/Boards_WiFi/Arduino_org_UNO_WiFi
+          extra_args: --project-option='build_flags=-DESP_CH_SPI' --project-option='lib_deps=WiFi Link'
+        #- example: examples/Boards_WiFi/Fishino
+        - example: examples/Boards_WiFi/RN_XV_WiFly
+          board: leonardo
+        #- example: examples/Boards_WiFi/TinyDuino_WiFi
+        #  board: tinyduino
+        #  extra_args: --project-option='lib_deps=Adafruit CC3000 Library'
+        - example: examples/Boards_WiFi/WildFire_V3
+          board: wildfirev3
+          extra_args: --project-option='lib_deps=WildFire-CC3000'
+        #- example: examples/Boards_WiFi/Wio_Terminal
+        #  board: seeed_wio_terminal
+        #  extra_args: --project-option='lib_deps=SPI, Seeed Arduino rpcWiFi'
+        #- example: examples/Boards_WiFi/WizFi250
+        #  extra_args: --project-option='lib_deps=WizFi250'
+        - example: examples/Boards_WiFi/WizFi310
+          extra_args: --project-option='lib_deps=WizFi310'
+
+    steps: &platformio_steps
+      - uses: actions/checkout@v6
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Install PlatformIO libraries
+        run: |
+          pio pkg install -g -l "adafruit/Adafruit NeoPixel"
+          pio pkg install -g -l "adafruit/Adafruit Unified Sensor"
+          pio pkg install -g -l "ntruchsess/UIPEthernet"
+          pio pkg install -g -l "jandrassy/EthernetENC"
+          pio pkg install -g -l "wickeddevice/WildFireCore"
+          pio pkg install -g -l "harlequin-tech/WiFlyHQ"
+          pio pkg install -g -l "paulstoffregen/Time"
+          pio pkg install -g -l "adafruit/DHT sensor library"
+          pio pkg install -g -l "sandeepmistry/BLEPeripheral"
+          pio pkg install -g -l "adafruit/Adafruit BluefruitLE nRF51"
+          pio pkg install -g -l "cmaglie/FlashStorage"
+          pio pkg install -g -l "michael71/Timer5"
+          pio pkg install -g -l "vshymanskyy/TinyGSM"
+          pio pkg install -g -l "arduino-libraries/WiFi"
+          pio pkg install -g -l "arduino-libraries/GSM"
+          pio pkg install -g -l "arduino-libraries/ArduinoBearSSL"
+          pio pkg install -g -l "arduino-libraries/ArduinoECCX08"
+          pio pkg install -g -l "arduino-libraries/Ethernet"
+          pio pkg install -g -l "arduino-libraries/Servo"
+          pio pkg install -g -l "sumotoy/simplyEncoder"
+
+      - name: Build PlatformIO example
+        run: |
+          pio ci --lib=. --board=${{ matrix.board || env.DEFAULT_BOARD }} \
+          ${{ matrix.extra_args }} ${{ matrix.platform }} \
+          --project-option="extra_scripts=post:${{ github.workspace }}/extras/check_mem.py"
+        env:
+          PLATFORMIO_CI_SRC: ${{ matrix.example }}
+          PLATFORMIO_BUILD_FLAGS:
+            -DBLYNK_TEMPLATE_ID="\"TMPLxxxx\""
+            -DBLYNK_TEMPLATE_NAME="\"MyDevice\""
+            -DBLYNK_AUTH_TOKEN="\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+
+  platformio-ethernet:
+    name: Ethernet - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Boards_ArduinoClient/Arduino_Ethernet
+        - example: examples/Boards_ArduinoClient/Arduino_MKR1400_GSM_ETH
+          board: mkrgsm1400
+          extra_args: --project-option='lib_deps=MKRGSM'
+        - example: examples/Boards_ArduinoClient/Arduino_MKR1400_GSM_ETH_SSL
+          board: mkrgsm1400
+          extra_args: --project-option='lib_deps=MKRGSM'
+        - example: examples/Boards_Ethernet/Arduino_Ethernet
+        - example: examples/Boards_Ethernet/Arduino_Ethernet_Manual
+        - example: examples/Boards_Ethernet/Arduino_MKR_ETH
+          board: mkrzero
+        - example: examples/Boards_Ethernet/Arduino_MKR_ETH_SSL
+          board: mkrzero
+        - example: examples/Boards_Ethernet/ENC28J60
+          board: nanoatmega328
+
+    steps: *platformio_steps
+
+  platformio-gsm:
+    name: GSM - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Boards_GSM/Arduino_MKRGSM
+          board: mkrgsm1400
+          extra_args: --project-option='lib_deps=MKRGSM'
+        - example: examples/Boards_GSM/Arduino_MKRNB
+          board: mkrnb1500
+          extra_args: --project-option='lib_deps=MKRNB'
+        - example: examples/Boards_GSM/TinyGSM_MKR1400
+          board: mkrgsm1400
+        - example: examples/Boards_GSM/TinyGSM_SIM800_SIM900
+          board: leonardo
+
+    steps: *platformio_steps
+
+  platformio-http:
+    name: HTTP API - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Boards_With_HTTP_API/Arduino_Ethernet
+        - example: examples/Boards_With_HTTP_API/Arduino_GSM
+        - example: examples/Boards_With_HTTP_API/SIM800_SIM900
+          board: leonardo
+
+    steps: *platformio_steps
+
+  platformio-core:
+    name: Core - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/GettingStarted/BlynkBlink
+        - example: examples/GettingStarted/GetData
+        - example: examples/GettingStarted/PushData
+        - example: examples/GettingStarted/Servo
+        - example: examples/GettingStarted/VirtualPinRead
+        - example: examples/GettingStarted/VirtualPinWrite
+        - example: examples/More/DHT11
+          extra_args: --project-option='lib_deps=Adafruit Unified Sensor'
+        - example: examples/More/FormatString
+        - example: examples/More/NeoPixel
+        - example: examples/More/PrintAllVirtual
+        - example: examples/More/RTC
+        - example: examples/More/RTC_Advanced
+        - example: examples/More/ServerAsDataStorage/ServerAsDataStorage_MultiValue
+        - example: examples/More/ServerAsDataStorage/ServerAsDataStorage_SingleValue
+        - example: examples/More/SetProperty/SetProperty_MultiValue
+        - example: examples/More/SetProperty/SetProperty_SingleValue
+        - example: examples/More/Stroboscope
+        - example: examples/More/Sync/ButtonInterrupt
+        - example: examples/More/Sync/ButtonPoll
+        - example: examples/More/Sync/HardwareSyncStateFromApp
+        - example: examples/More/Sync/SyncPhysicalButton
+        - example: examples/More/TimeAndLocation
+
+    steps: *platformio_steps
+
+  platformio-widgets:
+    name: Widgets - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - example: examples/Widgets/Joystick
+        - example: examples/Widgets/LCD/LCD_AdvancedMode
+        - example: examples/Widgets/LCD/LCD_SimpleMode
+        - example: examples/Widgets/LED/LED_Blink
+        - example: examples/Widgets/LED/LED_Color
+        - example: examples/Widgets/LED/LED_Fade
+        - example: examples/Widgets/LED/LED_StatusOfButton
+        - example: examples/Widgets/Map
+        - example: examples/Widgets/Menu
+        - example: examples/Widgets/MusicPlayer
+        - example: examples/Widgets/Terminal
+        - example: examples/Widgets/TimeInput/AdvancedTimeInput
+        - example: examples/Widgets/TimeInput/SimpleTimeInput
+        - example: examples/Widgets/TimeInput/UpdateTimeInputState
+
+    steps: *platformio_steps
+
+  linux:
+    name: Linux build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Linux target
+        run: make -C linux
+        env:
+          CXXFLAGS:
+            -DBLYNK_TEMPLATE_ID="\"TMPLxxxx\""
+            -DBLYNK_TEMPLATE_NAME="\"MyDevice\""

@@ -1,0 +1,14 @@
+{
+  "idf.currentSetup": "C:\\Users\\admin\\esp\\v5.5.2\\esp-idf",
+  "clangd.path": "C:\\Users\\admin\\.espressif\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=e:\\BKHN_DTVT\\Hệ thống nhúng & thiết kế giao tiếp nhúng\\parking-car\\build"
+  ],
+  "idf.openOcdConfigs": [
+    "interface/ftdi/esp32_devkitj_v1.cfg",
+    "target/esp32.cfg"
+  ],
+  "idf.port": "COM3"
+}
