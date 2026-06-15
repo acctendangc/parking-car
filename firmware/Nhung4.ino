@@ -13,8 +13,8 @@
 #include <LiquidCrystal_I2C.h>
 
 /* Thông tin WiFi */
-char ssid[] = "Chays";
-char pass[] = "chaykatu";
+char ssid[] = "1395 GIAI PHONG";
+char pass[] = "12345678";
 
 /* Định nghĩa các chân GPIO */
 const int servoPin  = 18;
@@ -39,8 +39,8 @@ const int COLLISION_THRESHOLD_MM = 50;
 
 /* Cấu hình Servo */
 Servo myServo;
-const int angleDefault = 0;
-const int angleUnlock  = 90;
+const int angleDefault = 90;
+const int angleUnlock  = 0;
 
 /* Cảm biến khoảng cách */
 VL53L1X distSensor;
@@ -229,7 +229,7 @@ void setup() {
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
   myServo.setPeriodHertz(50);
-  myServo.attach(servoPin);
+  myServo.attach(servoPin, 500, 2400);
   myServo.write(angleDefault);
   Serial.println("Hệ thống sẵn sàng. Servo đang ở 90 độ.");
 
@@ -244,27 +244,18 @@ void loop() {
   bool switchOn  = isSwitchPhysicallyOn();
   bool chargerOn = isChargerConnected();
 
-  // Biến tạm
-  int currentDistance = lastDistanceCm;
-  int hasCar = 0;
-  int isCharging = chargerOn ? 1 : 0;
-  int slotState = 0;
-  
-  // Dùng static để chuỗi vi phạm được lưu lại sau mỗi vòng lặp
-  static String violationType = "none";
-
   // LED đơn
   digitalWrite(ledPin, chargerOn ? HIGH : LOW);
 
-  // Đọc cảm biến khoảng cách (đọc 100ms/lần nhưng KHÔNG GỬI LÊN BLYNK Ở ĐÂY NỮA)
+  // Đọc cảm biến khoảng cách
   if (millis() - lastSensorRead >= 100) {
     lastSensorRead = millis();
     int distCm = readDistanceCm();
 
     if (distCm >= 0) {
       lastDistanceCm = distCm;
-      currentDistance = distCm;
-      
+      Blynk.virtualWrite(V8, distCm);
+
       bool tooClose = (distCm * 10) < COLLISION_THRESHOLD_MM;
       if (tooClose && !collisionAlarm) {
         collisionAlarm = true;
@@ -276,19 +267,14 @@ void loop() {
     }
   }
 
-  // Xác định có xe hay không (khoảng cách < 60cm là có xe)
-  if (currentDistance > 0 && currentDistance <= 60) {
-    hasCar = 1;
-  }
-
   // Phát hiện thay đổi công tắc
   if (switchOn != lastSwitchState) {
     if (switchOn) {
       if (isUnlocked) {
         Serial.println("Đã cắm sạc - LED sáng.");
+        Blynk.virtualWrite(V7, 1);
         alarmActive = false;
         waitingAfterCharge = false;
-        violationType = "none"; // Xóa lỗi vi phạm
         digitalWrite(buzzerPin, LOW);
       } else {
         Serial.println("CẢNH BÁO: Dùng trụ sạc khi chưa có xe!");
@@ -297,12 +283,12 @@ void loop() {
     } else {
       if (isUnlocked) {
         Serial.println("Đã rút sạc - đếm 10s.");
+        Blynk.virtualWrite(V7, 0);
         waitingAfterCharge = true;
         chargerOffTime = millis();
       } else {
         Serial.println("Tắt công tắc - hết cảnh báo.");
         alarmActive = false;
-        violationType = "none"; // Xóa lỗi vi phạm
         digitalWrite(buzzerPin, LOW);
       }
     }
@@ -314,7 +300,6 @@ void loop() {
     if (!chargerOn && millis() - unlockTime >= 10000) {
       Serial.println("CẢNH BÁO: 10s chưa cắm sạc!");
       alarmActive = true;
-      violationType = "no_charging";
     }
   }
 
@@ -324,20 +309,6 @@ void loop() {
       Serial.println("CẢNH BÁO: Sạc xong nhưng chưa rời bãi!");
       alarmActive = true;
       waitingAfterCharge = false;
-      violationType = "no_leaving";
-    }
-  }
-
-  // Tính toán trạng thái tổng hợp (V0)
-  if (alarmActive) {
-    slotState = 3; // Vi phạm
-  } else {
-    if (isCharging) {
-      slotState = 2; // Đang sạc
-    } else if (hasCar) {
-      slotState = 1; // Có xe nhưng chưa sạc
-    } else {
-      slotState = 0; // Trống
     }
   }
 
@@ -356,22 +327,6 @@ void loop() {
   // Cập nhật LED RGB và LCD
   updateRGB();
   updateLCDStatus();
-
-  // =================================================================
-  // ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT ĐỂ CHỐNG LỖI FLOOD ERROR
-  // GOM TẤT CẢ LỆNH GỬI LÊN BLYNK VÀO ĐÂY, CHỈ GỬI 1 GIÂY 1 LẦN
-  // =================================================================
-  static unsigned long lastBlynkUpdate = 0;
-  if (millis() - lastBlynkUpdate >= 1000) {
-    lastBlynkUpdate = millis();
-
-    Blynk.virtualWrite(V0, slotState);
-    Blynk.virtualWrite(V1, currentDistance);
-    Blynk.virtualWrite(V2, hasCar);
-    Blynk.virtualWrite(V3, isCharging);
-    Blynk.virtualWrite(V7, alarmActive ? violationType : "none");
-    Blynk.virtualWrite(V8, collisionAlarm ? 1 : 0);
-  }
 }
 
 BLYNK_WRITE(V9) {
@@ -381,9 +336,6 @@ BLYNK_WRITE(V9) {
     Serial.println("Lệnh hạ khóa kích hoạt.");
     myServo.write(angleUnlock);
     Blynk.virtualWrite(V6, 1);
-    
-    // Reset V9 trên server về 0 để đón lệnh lần sau, tránh kẹt trạng thái servo
-    Blynk.virtualWrite(V9, 0); 
 
     isUnlocked  = true;
     unlockTime  = millis();
@@ -393,13 +345,14 @@ BLYNK_WRITE(V9) {
 
     if (isSwitchPhysicallyOn()) {
       Serial.println("Công tắc đã bật sẵn → sạc ngay.");
+      Blynk.virtualWrite(V7, 1);
     }
   }
   else {
     Serial.println("Lệnh nâng khóa.");
     myServo.write(angleDefault);
     Blynk.virtualWrite(V6, 0);
-    Blynk.virtualWrite(V7, "none"); // Sửa lại thành chuỗi "none" thay vì số 0
+    Blynk.virtualWrite(V7, 0);
 
     isUnlocked  = false;
     waitingAfterCharge = false;
