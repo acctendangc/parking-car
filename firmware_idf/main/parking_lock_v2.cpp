@@ -14,9 +14,9 @@
    ============================================ */
 #include <Arduino.h>
 /* Điền thông tin Blynk của bạn vào đây */
-#define BLYNK_TEMPLATE_ID "TMPL6la2SNFSa"
+#define BLYNK_TEMPLATE_ID "TMPL6fUC766cO"
 #define BLYNK_TEMPLATE_NAME "ParkingCar"
-#define BLYNK_AUTH_TOKEN "N7OFNh5W2bXFpSDSCxZQjLaaL64z9GCi"
+#define BLYNK_AUTH_TOKEN "8kMyasAuHrqFZRGrk_dA-K4VJI1i6EIN"
 
 /* Khai báo thư viện */
 #include <WiFi.h>
@@ -28,8 +28,8 @@
 #include <LiquidCrystal_I2C.h>
 
 /* Thông tin WiFi */
-char ssid[] = "Chays";
-char pass[] = "chaykatu";
+char ssid[] = "Xiaomi 15T";
+char pass[] = "xuanducshare";
 
 /* ====== ĐỊNH NGHĨA CÁC CHÂN GPIO ====== */
 const int servoPin  = 18; // Servo SG90
@@ -366,11 +366,16 @@ void loop() {
   }
 
   // ===== LOGIC 2: 10s SAU RÚT SẠC MÀ KHÔNG RỜI BÃI =====
-  if (waitingAfterCharge && !alarmActive) {
+  if (waitingAfterCharge) {
     if (millis() - chargerOffTime >= 10000) {
-      Serial.println("CANH BAO: Sac xong nhung chua roi bai!");
-      alarmActive = true;
+      Serial.println("Sac xong - tu dong nang khoa.");
+      myServo.write(angleDefault);
+      Blynk.virtualWrite(V6, 0);
+      Blynk.virtualWrite(V7, 0);
+      isUnlocked = false;
+      alarmActive = false;
       waitingAfterCharge = false;
+      digitalWrite(buzzerPin, LOW);
     }
   }
 
