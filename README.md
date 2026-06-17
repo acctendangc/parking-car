@@ -1,4 +1,4 @@
-# Parking Car — Hệ thống khóa giữ chỗ sạc thông minh cho xe điện
+# Parking Car — Hệ thống khóa giữ chỗ sạc cho xe điện
 
 Mô hình hệ thống khóa giữ chỗ sạc dành cho xe điện (EV) sử dụng ESP32 làm bộ điều khiển trung tâm. Người dùng điều khiển và giám sát qua app **Blynk IoT**, trong khi thiết bị phản hồi trạng thái trực tiếp qua LCD, LED RGB và buzzer.
 
