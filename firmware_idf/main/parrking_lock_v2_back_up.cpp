@@ -1,5 +1,5 @@
 /* ============================================
-   HỆ THỐNG KHOÁ GIỮ CHỖ SẠC THÔNG MINH CHO XE ĐIỆN
+   HỆ THỐNG KHOÁ GIỮ CHỖ SẠC CHO XE ĐIỆN
    Smart Parking Car for EV Charging
    ============================================
    Phần cứng:
@@ -13,23 +13,22 @@
    - LCD I2C 16x2 (D21 SDA, D22 SCL) - hiển thị trạng thái
    ============================================ */
 #include <Arduino.h>
-/* Điền thông tin Blynk của bạn vào đây */
-#define BLYNK_TEMPLATE_ID "TMPL6la2SNFSa"
+/* Điền thông tin Blynk vào đây */
+#define BLYNK_TEMPLATE_ID "TMPL6d0PgvUhe"
 #define BLYNK_TEMPLATE_NAME "ParkingCar"
-#define BLYNK_AUTH_TOKEN "N7OFNh5W2bXFpSDSCxZQjLaaL64z9GCi"
+#define BLYNK_AUTH_TOKEN "JSpCA0mn3EuNWYubNNWl8kzIL-3FtoNp"
 
 /* Khai báo thư viện */
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
-#include <ESP32Servo.h>
 #include <Wire.h>
 #include <VL53L1X.h>
 #include <LiquidCrystal_I2C.h>
 
 /* Thông tin WiFi */
-char ssid[] = "Chays";
-char pass[] = "chaykatu";
+char ssid[] = "Ngọn cỏ ven đường";
+char pass[] = "Thanhchay7@";
 
 /* ====== ĐỊNH NGHĨA CÁC CHÂN GPIO ====== */
 const int servoPin  = 18; // Servo SG90
@@ -49,15 +48,45 @@ const int sclPin = 22;
 /* LCD I2C địa chỉ 0x3F (đã xác định bằng I2C Scanner) */
 LiquidCrystal_I2C lcd(0x3F, 16, 2);
 
-/* Ngưỡng cảnh báo va chạm (mm) - dưới 5cm là nguy hiểm */
-const int COLLISION_THRESHOLD_MM = 40;
+/* Ngưỡng cảnh báo va chạm (mm) - dưới 1cm là nguy hiểm */
+const int COLLISION_THRESHOLD_MM = 20;
+
+/* Ngưỡng xác định xe còn trong ô đỗ (cm) - trên 4cm là coi như không có xe */
+const int CAR_PRESENT_THRESHOLD_CM = 6;
 
 /* ====== CẤU HÌNH SERVO ======
    Logic đảo ngược: khi nút Blynk BẬT (hạ khóa) -> servo về 90 độ
-                    khi nút Blynk TẮT (nâng khóa) -> servo về 0 độ */
-Servo myServo;
+                    khi nút Blynk TẮT (nâng khóa) -> servo về 0 độ
+   Sửa lỗi ESP32Servo/ESP32PWM báo: Pin 18 is already attached to LEDC.
+   Không dùng ESP32Servo nữa, điều khiển servo trực tiếp bằng LEDC. */
 const int angleDefault = 0;   // Trạng thái mặc định: khóa nâng (chặn xe)
 const int angleUnlock  = 90;  // Trạng thái hạ khóa: cho xe vào
+
+const int servoChannel    = 0;     // LEDC channel riêng cho servo
+const int servoFreqHz     = 50;    // Servo SG90 dùng 50Hz
+const int servoResolution = 16;    // 16-bit duty
+const int servoMinUs      = 500;   // xung nhỏ nhất
+const int servoMaxUs      = 2400;  // xung lớn nhất
+const int servoPeriodUs   = 20000; // 50Hz = 20ms
+
+void attachServoPWM() {
+  // Đảm bảo pin chưa bị giữ bởi LEDC trước đó.
+  ledcDetach(servoPin);
+
+  if (!ledcAttachChannel(servoPin, servoFreqHz, servoResolution, servoChannel)) {
+    Serial.println("LOI: Khong cau hinh duoc PWM servo tren GPIO18!");
+  }
+}
+
+void writeServoAngle(int angle) {
+  angle = constrain(angle, 0, 180);
+
+  uint32_t pulseUs = map(angle, 0, 180, servoMinUs, servoMaxUs);
+  uint32_t maxDuty = (1UL << servoResolution) - 1;
+  uint32_t duty = ((uint64_t)pulseUs * maxDuty) / servoPeriodUs;
+
+  ledcWrite(servoPin, duty);
+}
 
 /* ====== CẢM BIẾN KHOẢNG CÁCH ====== */
 VL53L1X distSensor;
@@ -81,6 +110,10 @@ bool lastSwitchState = false;
 /* Biến đếm 10s sau khi rút sạc */
 unsigned long chargerOffTime = 0;
 bool waitingAfterCharge = false;
+
+/* Biến theo dõi thời gian xe đã rời đi */
+unsigned long carLeftTime = 0;
+bool carHasLeft = false;
 
 /* Biến điều khiển LED RGB nhấp nháy đỏ */
 unsigned long lastRedBlinkTime = 0;
@@ -175,10 +208,17 @@ void updateLCDStatus() {
     showLCD("Co xe do", "Dang sac OK");
   }
   else if (waitingAfterCharge) {
-    unsigned long elapsed = (millis() - chargerOffTime) / 1000;
-    long remain = 10 - (long)elapsed;
-    if (remain < 0) remain = 0;
-    showLCD("Sac xong - roi", "Con: " + String(remain) + "s");
+    if (carHasLeft) {
+      unsigned long elapsed = (millis() - carLeftTime) / 1000;
+      long remain = 5 - (long)elapsed;
+      if (remain < 0) remain = 0;
+      showLCD("Xe da roi di", "Khoa sau: " + String(remain) + "s");
+    } else {
+      unsigned long elapsed = (millis() - chargerOffTime) / 1000;
+      long remain = 10 - (long)elapsed;
+      if (remain < 0) remain = 0;
+      showLCD("Sac xong - roi", "Con: " + String(remain) + "s");
+    }
   }
   else {
     unsigned long elapsed = (millis() - unlockTime) / 1000;
@@ -268,14 +308,9 @@ void setup() {
     Serial.println("LOI: Khong tim thay VL53L1X!");
   }
 
-  // Cấu hình Servo PWM
-  ESP32PWM::allocateTimer(0);
-  ESP32PWM::allocateTimer(1);
-  ESP32PWM::allocateTimer(2);
-  ESP32PWM::allocateTimer(3);
-  myServo.setPeriodHertz(50);
-  myServo.attach(servoPin, 500, 2400);
-  myServo.write(angleDefault); // Mặc định: khóa nâng (0 độ)
+  // Cấu hình Servo PWM bằng LEDC trực tiếp
+  attachServoPWM();
+  writeServoAngle(angleDefault); // Mặc định: khóa nâng (0 độ)
   Serial.print("Servo dat o goc mac dinh: ");
   Serial.println(angleDefault);
 
@@ -300,6 +335,13 @@ void loop() {
   // LED đơn báo trạng thái sạc
   digitalWrite(ledPin, chargerOn ? HIGH : LOW);
 
+  // ---> BÁO TRẠNG THÁI SẠC LÊN V3 <---
+  static bool lastChargerState = false; // Biến lưu trạng thái sạc trước đó
+  if (chargerOn != lastChargerState) {
+    Blynk.virtualWrite(V3, chargerOn ? 1 : 0); // Gửi 1 (Đang sạc) hoặc 0 (Ngừng sạc) lên V3
+    lastChargerState = chargerOn; // Cập nhật lại biến nhớ
+  }
+
   // ===== ĐỌC CẢM BIẾN KHOẢNG CÁCH (MỖI 100ms) =====
   if (millis() - lastSensorRead >= 100) {
     lastSensorRead = millis();
@@ -307,7 +349,11 @@ void loop() {
 
     if (distCm >= 0) {
       lastDistanceCm = distCm;
-      Blynk.virtualWrite(V8, distCm);
+      Blynk.virtualWrite(V1, distCm);
+
+      // Có xe = (Khoảng cách <= 6cm) VÀ (Công tắc sạc đang BẬT)
+      bool hasCar = (distCm <= CAR_PRESENT_THRESHOLD_CM) && switchOn;
+      Blynk.virtualWrite(V2, hasCar ? 1 : 0);
 
       bool tooClose = (distCm * 10) < COLLISION_THRESHOLD_MM;
       if (tooClose && !collisionAlarm) {
@@ -346,6 +392,7 @@ void loop() {
         Blynk.virtualWrite(V7, 0);
         waitingAfterCharge = true;
         chargerOffTime = millis();
+        carHasLeft = false; // Khởi tạo lại trạng thái xe chưa rời đi
       } else {
         // Tắt công tắc khi chưa có xe -> hết cảnh báo dùng trái phép
         Serial.println("Tat cong tac - het canh bao.");
@@ -366,11 +413,48 @@ void loop() {
   }
 
   // ===== LOGIC 2: 10s SAU RÚT SẠC MÀ KHÔNG RỜI BÃI =====
-  if (waitingAfterCharge && !alarmActive) {
-    if (millis() - chargerOffTime >= 10000) {
-      Serial.println("CANH BAO: Sac xong nhung chua roi bai!");
-      alarmActive = true;
-      waitingAfterCharge = false;
+  // ===== LOGIC 2: XỬ LÝ SAU KHI RÚT SẠC & KIỂM TRA GẦM XE =====
+  if (waitingAfterCharge) {
+    // Kiểm tra xe có đang nằm trên cảm biến không (khoảng cách <= 4cm)
+    // Nếu lastDistanceCm == -1 (cảm biến không thấy vật cản) thì coi như xe đã đi
+    bool carPresent = (lastDistanceCm >= 0 && lastDistanceCm <= CAR_PRESENT_THRESHOLD_CM);
+
+    if (carPresent) {
+      carHasLeft = false; // Reset cờ, ghi nhận xe vẫn còn nằm trong bãi
+      
+      // Nếu rút sạc quá 10s mà xe vẫn lỳ đòn chưa đi
+      if (millis() - chargerOffTime >= 10000) {
+        if (!alarmActive) {
+          Serial.println("CANH BAO: Rut sac nhung xe chua roi bai!");
+          alarmActive = true; // Kích hoạt còi và LED đỏ nhấp nháy, KHÔNG NÂNG KHÓA
+        }
+      }
+    } else {
+      // Cảm biến không còn thấy gầm xe (khoảng cách > 4cm)
+      if (!carHasLeft) {
+        carHasLeft = true;
+        carLeftTime = millis(); // Bắt đầu đếm ngược 5s
+        
+        // Nếu trước đó đang kêu còi báo động chiếm chỗ thì tắt đi
+        if (alarmActive) {
+          alarmActive = false;
+          digitalWrite(buzzerPin, LOW);
+        }
+      } else {
+        // Đã đếm đủ 5s từ khi khoảng cách an toàn được xác lập -> Mới nâng khóa
+        if (millis() - carLeftTime >= 5000) {
+          Serial.println("Xe da roi bai an toan - tu dong nang khoa.");
+          writeServoAngle(angleDefault); // Nâng khóa lên (chặn)
+          Blynk.virtualWrite(V6, 0);
+          Blynk.virtualWrite(V7, 0);
+          
+          isUnlocked = false;
+          alarmActive = false;
+          waitingAfterCharge = false;
+          carHasLeft = false;
+          digitalWrite(buzzerPin, LOW);
+        }
+      }
     }
   }
 
@@ -401,7 +485,7 @@ BLYNK_WRITE(V9) {
   if (unlock_cmd == 1) {
     // Bật nút "hạ khóa" trên Blynk -> servo về 90 độ (cho xe vào)
     Serial.println("Lenh ha khoa kich hoat - Servo ve 90 do.");
-    myServo.write(angleUnlock);
+    writeServoAngle(angleUnlock);
     Blynk.virtualWrite(V6, 1);
 
     isUnlocked  = true;
@@ -419,7 +503,7 @@ BLYNK_WRITE(V9) {
   else {
     // Tắt nút "hạ khóa" -> servo về 0 độ (chặn xe)
     Serial.println("Lenh nang khoa - Servo ve 0 do.");
-    myServo.write(angleDefault);
+    writeServoAngle(angleDefault);
     Blynk.virtualWrite(V6, 0);
     Blynk.virtualWrite(V7, 0);
 
