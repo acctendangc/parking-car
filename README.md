@@ -101,7 +101,7 @@ Servo hạ xuống 90° ──► isUnlocked = true
 | Chưa cắm sạc | Hạ khóa 10 giây, công tắc vẫn tắt | Còi nhấp nháy + LED đỏ nháy + LCD "Chua cam sac" |
 | Chiếm chỗ sau sạc | Đã nâng khóa tự động nhưng xe còn đó (phát hiện qua cảm biến khoảng cách <120cm không liên tục) | — (chỉ nâng khóa, không có cảnh báo thêm) |
 | Dùng trái phép | Bật công tắc khi chưa có lệnh hạ khóa | Còi nhấp nháy + LED đỏ nháy + LCD "Dung sai phep" |
-| Va chạm | Vật thể < 40 mm phía trước VL53L1X | Còi nhấp nháy + LED đỏ nháy + LCD hiện khoảng cách |
+| Va chạm | Vật thể < 10 mm phía trước VL53L1X | Còi nhấp nháy + LED đỏ nháy + LCD hiện khoảng cách |
 
 ### Tự động nâng khóa khi xe rời đi
 
