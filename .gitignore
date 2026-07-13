@@ -1,4 +1,14 @@
+# Local secrets
 firmware/secrets.h
+firmware_idf/main/secrets.h
+
+# ESP-IDF generated artifacts
 firmware_idf/build/
 firmware_idf/managed_components/
 firmware_idf/sdkconfig.old
+
+# Editor/OS temporary files
+*.swp
+*.tmp
+.DS_Store
+Thumbs.db
