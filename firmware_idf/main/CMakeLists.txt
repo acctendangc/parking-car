@@ -1,3 +1,11 @@
-idf_component_register(SRCS "parking_lock_v2.cpp"
-                    INCLUDE_DIRS "."
-                    REQUIRES espressif__arduino-esp32 Blynk ESP32Servo VL53L1X LiquidCrystal_I2C)
+idf_component_register(
+    SRCS
+        "parking_lock_v2.cpp"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        espressif__arduino-esp32
+        Blynk
+        VL53L1X
+        LiquidCrystal_I2C
+)
